@@ -48,7 +48,7 @@ def init(opts):
             password=opts['proxy']['password'],
             key_accept=opts['proxy'].get('key_accept', False),
             ssh_args=opts['proxy'].get('ssh_args', ''),
-            prompt='.+[#$]')
+            prompt='root.+#')
         log.info('SSH Connection established.')
         out, err = DETAILS['server'].sendline('id')
         DETAILS['initialized'] = True
@@ -103,7 +103,8 @@ def grains(**kwargs):
         GRAINS_CACHE['manufacturer'], GRAINS_CACHE['productname'] = board['model'].split(' ', 1)
         GRAINS_CACHE['os'] = board['release']['distribution']
         GRAINS_CACHE['os_family'] = 'openwrt'
-        GRAINS_CACHE['oscodename'] = board['release']['codename']
+        #RVE: wont work
+        #GRAINS_CACHE['oscodename'] = board['release']['codename']
         GRAINS_CACHE['osfullname'] = board['release']['description']
         GRAINS_CACHE['osrelease'] = board['release']['version']
         GRAINS_CACHE['osmajorrelease'] = board['release']['version'].split('.')[0]
@@ -119,7 +120,7 @@ def grains(**kwargs):
         ip_interfaces = {}
         ipv4 = {}
         ipv6 = {}
-        for dev, i in netdev.iteritems():
+        for dev, i in netdev.items():
             hwaddr_interfaces[dev] = i['macaddr']
         for i in netif['interface']:
             try:
@@ -131,15 +132,16 @@ def grains(**kwargs):
             except KeyError:
                 pass
             for item in [('dns-server', 'nameservers'), ('dns-search', 'search')]:
-                if len(i[item[0]]) > 0:
+                if item[0] in i and len(i[item[0]]) > 0:
                     dns[item[1]].extend(i[item[0]])
-            for route in i['route']:
-                if route['target'] == '0.0.0.0':
-                    GRAINS_CACHE['ip4_gw'] = route['nexthop']
-                    GRAINS_CACHE['ip_gw'] = True
-                if route['target'] == '::/0':
-                    GRAINS_CACHE['ip6_gw'] = route['nexthop']
-                    GRAINS_CACHE['ipv6_gw'] = True
+            if 'route' in i:
+                for route in i['route']:
+                    if route['target'] == '0.0.0.0':
+                        GRAINS_CACHE['ip4_gw'] = route['nexthop']
+                        GRAINS_CACHE['ip_gw'] = True
+                    if route['target'] == '::/0':
+                        GRAINS_CACHE['ip6_gw'] = route['nexthop']
+                        GRAINS_CACHE['ipv6_gw'] = True
 
         GRAINS_CACHE['dns'] = dns
         GRAINS_CACHE['hwaddr_interfaces'] = hwaddr_interfaces
@@ -190,8 +192,13 @@ def ubus(path, method, message = {}):
     Call a remote ubus method
     '''
     command = 'ubus call %s %s \'%s\'' % (path, method, salt.utils.json.dumps(message))
-    out, _ = ssh_cmd(command)
-    return salt.utils.json.loads(out)
+    out, _, ret = ssh_check(command)
+    if ret == 0:
+        if not out:
+            return True
+        else:
+            return salt.utils.json.loads(out)
+    return False
 
 def ssh_oneshot(command):
     '''
@@ -219,7 +226,7 @@ def ssh_check(command):
     Run cmd on the remote system and fetch exit code
     '''
     try:
-        out, err = DETAILS['server'].sendline('%s; echo $?' % (command,))
+        out, err = DETAILS['server'].sendline('%s; echo $?' % (command))
         out = "\n".join(out.split('\n')[1:-1])
         out, _, ret = out.rpartition('\n')
         return out, err, int(ret)

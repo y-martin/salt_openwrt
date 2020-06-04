@@ -27,7 +27,7 @@ def update_pkgs():
     '''
     Update the list of available packages
     '''
-    out, _, ret = __proxy__['ssh.ssh_check']('opkg update')
+    out, _, ret = __proxy__['openwrt.ssh_check']('opkg update')
     if ret == 0:
         return True
     else :
@@ -39,9 +39,11 @@ def list_pkgs():
     Retrieve a list of installed packages from the openwrt host
     '''
     pkgs = {}
-    for line, _, ret in __proxy__['openwrt.ssh_check']('opkg list-installed').split('\n'):
-        pkg, version = line.split(' - ')
-        pkgs[pkg] = version
+    out, _, ret = __proxy__['openwrt.ssh_check']('opkg list-installed')
+    if ret == 0:
+        for line in out.split('\n'):
+            pkg, version = line.split(' - ')
+            pkgs[pkg] = version
     return pkgs
 
 
@@ -59,22 +61,13 @@ def network_restart():
     '''
     Restart the network, reconfigures all interfaces
     '''
-    out = __proxy__['openwrt.ubus']('network', 'restart')
-    if ret == 0:
-        return True
-    else :
-        return False
-
+    return __proxy__['openwrt.ubus']('network', 'restart')
 
 def network_reload():
     '''
     Reload the network, reload interfaces as needed
     '''
-    out = __proxy__['openwrt.ubus']('network', 'reload')
-    if ret == 0:
-        return True
-    else :
-        return False
+    return __proxy__['openwrt.ubus']('network', 'reload')
 
 
 def interface_list():
@@ -87,6 +80,7 @@ def interface_list():
         for line in out.split('\n'):
             if line.startswith('network.interface.'):
                 intfs.append('.'.join(line.split('.')[2:]))
+        return intfs
     else :
         return False
 
@@ -123,7 +117,7 @@ def _parse_uci(data):
     for line in data.split('\n'):
         key, value = line.split('=', 1)
         path = key.split('.')
-        uci['key'] = value
+        uci[key] = value
     return uci
 
 
@@ -139,5 +133,4 @@ def reboot():
     '''
     Reboot openwrt device
     '''
-    __proxy__['openwrt.ubus']('system', 'reboot')
-    return True
+    return __proxy__['openwrt.ubus']('system', 'reboot')
