@@ -27,12 +27,8 @@ def update_pkgs():
     '''
     Update the list of available packages
     '''
-    out, _, ret = __proxy__['openwrt.ssh_check']('opkg update')
-    if ret == 0:
-        return True
-    else :
-        return False
-
+    _, _, ret = __proxy__['openwrt.ssh_check']('opkg update')
+    return ret == 0
 
 def list_pkgs():
     '''
@@ -46,29 +42,27 @@ def list_pkgs():
             pkgs[pkg] = version
     return pkgs
 
-
 def remove_pkg(pkg):
     '''
     Remove an installed package
     '''
-    out, _, ret = __proxy__['openwrt.ssh_check']('opkg remove %s' % (pkg,))
-    if ret == 0:
-        return True
-    else :
-        return False
+    _, _, ret = __proxy__['openwrt.ssh_check']('opkg remove %s' % (pkg,))
+    return ret == 0
+
 
 def network_restart():
     '''
     Restart the network, reconfigures all interfaces
     '''
-    return __proxy__['openwrt.ubus']('network', 'restart')
+    _, _, ret = __proxy__['openwrt.ssh_check']('/etc/init.d/network restart')
+    return ret == 0
 
 def network_reload():
     '''
     Reload the network, reload interfaces as needed
     '''
-    return __proxy__['openwrt.ubus']('network', 'reload')
-
+    _, err, ret = __proxy__['openwrt.ssh_check']('/etc/init.d/network reload')
+    return ret == 0
 
 def interface_list():
     '''
@@ -81,8 +75,7 @@ def interface_list():
             if line.startswith('network.interface.'):
                 intfs.append('.'.join(line.split('.')[2:]))
         return intfs
-    else :
-        return False
+    return False
 
 
 def network_dev_status(intf):
@@ -105,9 +98,36 @@ def config_dump():
     '''
     out, err, ret =  __proxy__['openwrt.ssh_check']('uci show')
     if ret != 0:
-        return false
+        return False
     return _parse_uci(out)
 
+def config_get(key):
+    '''
+    Return uci value for key
+    '''
+    out, _, ret =  __proxy__['openwrt.ssh_check']('uci get {}'.format(key))
+    if ret == 0:
+        return out
+    return False
+
+
+def config_set(key, value):
+    '''
+    Set uci value for key and commit config
+    '''
+    _, _, ret =  __proxy__['openwrt.ssh_check']('uci set {}={}'.format(key, value))
+    if ret != 0:
+        return False
+
+    _, _, ret =  __proxy__['openwrt.ssh_check']('uci commit')
+    return ret == 0
+
+def config_reload():
+    '''
+    Reload router configuration
+    '''
+    _, _, ret =  __proxy__['openwrt.ssh_check']('reload_config')
+    return ret == 0
 
 def _parse_uci(data):
     '''

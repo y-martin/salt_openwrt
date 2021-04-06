@@ -48,7 +48,7 @@ def init(opts):
             password=opts['proxy']['password'],
             key_accept=opts['proxy'].get('key_accept', False),
             ssh_args=opts['proxy'].get('ssh_args', ''),
-            prompt='root.+#')
+            prompt='root@.+# $')
         log.info('SSH Connection established.')
         out, err = DETAILS['server'].sendline('id')
         DETAILS['initialized'] = True
@@ -241,6 +241,7 @@ def ssh_file_content(filename):
     '''
     data, _ = ssh_cmd('cat %s' % (filename,))
     return data
+
 
 def shutdown(opts):
     '''
