@@ -21,7 +21,7 @@ proxy:
 
 openwrt_config:
   config:
-    system.ntp.server: 10.33.0.1
+    system.ntp.server: a.b.c.d
 ```
 
 Password should be encrypted with GPG salt-master public key for security reasons

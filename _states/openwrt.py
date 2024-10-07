@@ -30,11 +30,6 @@ def config_set(name=None, value=None):
     value = str(value)
 
     openwrt_ret  = __salt__["openwrt.config_get"](name)
-    if openwrt_ret == False:
-        ret["result"] = False
-        ret["comment"] = "UCI key {} does not exist".format(name)
-        return ret
-
     if openwrt_ret == value:
         ret["result"] = True
         ret["comment"] = "UCI key {} already set to {}".format(name, value)
