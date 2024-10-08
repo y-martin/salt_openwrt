@@ -175,7 +175,7 @@ def _proxy_connect():
                     password=DETAILS['proxy']['password'],
                     key_accept=DETAILS['proxy'].get('key_accept', False),
                     ssh_args=DETAILS['proxy'].get('ssh_args', ''),
-                    prompt='root@.+# $'
+                    prompt='root@.+#'
                 )
                 log.info('SSH Connection established.')
             except TerminalException as e:
@@ -183,6 +183,7 @@ def _proxy_connect():
                 continue
     
         out, err = DETAILS['server'].sendline('echo 1234')
+        out = "\n".join(out.split('\n')[1:-1])
         if out != '1234':
             DETAILS['server'] = None
             continue
