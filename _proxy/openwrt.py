@@ -55,7 +55,7 @@ def ping():
     Required.
     Ping the device on the other end of the connection
     '''
-    ssh_oneshot('echo 1234') == '1234'
+    return ssh_oneshot('echo 1234') == '1234'
     
 def grains(**kwargs):
     '''
