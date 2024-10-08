@@ -164,17 +164,17 @@ def grains_refresh(**kwargs):
 def _proxy_connect():
     retry_conn = 0
     
-    while retry_conn < DETAILS['opts']['proxy'].get('conn_retry', 3):
+    while retry_conn < DETAILS['proxy'].get('conn_retry', 3):
         retry_conn += 1
 
         if not DETAILS.get('server'):
             try:        
                 DETAILS['server'] = SSHConnection(
-                    host=DETAILS['opts']['proxy']['host'],
-                    username=DETAILS['opts']['proxy']['username'],
-                    password=DETAILS['opts']['proxy']['password'],
-                    key_accept=DETAILS['opts']['proxy'].get('key_accept', False),
-                    ssh_args=DETAILS['opts']['proxy'].get('ssh_args', ''),
+                    host=DETAILS['proxy']['host'],
+                    username=DETAILS['proxy']['username'],
+                    password=DETAILS['proxy']['password'],
+                    key_accept=DETAILS['proxy'].get('key_accept', False),
+                    ssh_args=DETAILS['proxy'].get('ssh_args', ''),
                     prompt='root@.+# $'
                 )
                 log.info('SSH Connection established.')
