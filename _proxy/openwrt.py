@@ -171,8 +171,8 @@ def _proxy_connect():
             try:        
                 DETAILS['server'] = SSHConnection(
                     host=DETAILS['proxy']['host'],
-                    username=DETAILS['proxy']['username'],
-                    password=DETAILS['proxy']['password'],
+                    username=DETAILS['proxy']('username', 'root'),
+                    password=DETAILS['proxy']('password', ''),
                     key_accept=DETAILS['proxy'].get('key_accept', False),
                     ssh_args=DETAILS['proxy'].get('ssh_args', ''),
                     prompt='root@.+#'
