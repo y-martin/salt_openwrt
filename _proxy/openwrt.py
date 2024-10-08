@@ -32,7 +32,6 @@ def __virtual__():
     '''
     return __virtualname__
 
-
 def init(opts):
     '''
     Required.
@@ -41,22 +40,7 @@ def init(opts):
     if opts is None:
         opts = __opts__
 
-    try:
-        DETAILS['server'] = SSHConnection(
-            host=opts['proxy']['host'],
-            username=opts['proxy']['username'],
-            password=opts['proxy']['password'],
-            key_accept=opts['proxy'].get('key_accept', False),
-            ssh_args=opts['proxy'].get('ssh_args', ''),
-            prompt='root@.+# $')
-        log.info('SSH Connection established.')
-        out, err = DETAILS['server'].sendline('id')
-        DETAILS['initialized'] = True
-
-    except TerminalException as e:
-        log.error(e)
-        return False
-
+    DETAILS['proxy'] = opts['proxy']
 
 def initialized():
     '''
@@ -64,22 +48,15 @@ def initialized():
     places occur before the proxy can be initialized, return whether
     our init() function has been called
     '''
-    return DETAILS.get('initialized', False)
-
+    return DETAILS.get('proxy') is not None
 
 def ping():
     '''
     Required.
     Ping the device on the other end of the connection
     '''
-    try:
-        DETAILS['server'].sendline('id')
-        return True
-    except TerminalException as e:
-        log.error(e)
-        return False
-
-
+    ssh_oneshot('echo 1234') == '1234'
+    
 def grains(**kwargs):
     '''
     Get grains for minion.
@@ -147,8 +124,6 @@ def grains(**kwargs):
         GRAINS_CACHE['hwaddr_interfaces'] = hwaddr_interfaces
         GRAINS_CACHE['ip4_interfaces'] = ip4_interfaces
         GRAINS_CACHE['ip6_interfaces'] = ip6_interfaces
-#        GRAINS_CACHE['ip4'] = [y for y in x for x in GRAINS_CACHE['ip4_interfaces'].values() if x]
-#        GRAINS_CACHE['ip6'] = [y for y in x for x in GRAINS_CACHE['ip6_interfaces'].values() if x]
 
         archinfo = {}
         for line in ssh_oneshot('opkg print-architecture').splitlines():
@@ -176,7 +151,6 @@ def grains(**kwargs):
 
     return GRAINS_CACHE
 
-
 def grains_refresh(**kwargs):
     '''
     Refresh the grains for the OpenWRT device.
@@ -187,10 +161,44 @@ def grains_refresh(**kwargs):
     return grains(**kwargs)
 
 
+def _proxy_connect():
+    retry_conn = 0
+    
+    while retry_conn < DETAILS['opts']['proxy'].get('conn_retry', 3):
+        retry_conn += 1
+
+        if not DETAILS.get('server'):
+            try:        
+                DETAILS['server'] = SSHConnection(
+                    host=DETAILS['opts']['proxy']['host'],
+                    username=DETAILS['opts']['proxy']['username'],
+                    password=DETAILS['opts']['proxy']['password'],
+                    key_accept=DETAILS['opts']['proxy'].get('key_accept', False),
+                    ssh_args=DETAILS['opts']['proxy'].get('ssh_args', ''),
+                    prompt='root@.+# $'
+                )
+                log.info('SSH Connection established.')
+            except TerminalException as e:
+                log.error(e)
+                continue
+    
+        out, err = DETAILS['server'].sendline('echo 1234')
+        if out != '1234':
+            DETAILS['server'] = None
+            continue
+        else:
+            break
+
+    return DETAILS['server'] != None
+
 def ubus(path, method, message = {}):
     '''
     Call a remote ubus method
     '''
+
+    if not _proxy_connect():
+        return False
+    
     command = 'ubus call %s %s \'%s\'' % (path, method, salt.utils.json.dumps(message))
     out, _, ret = ssh_check(command)
     if ret == 0:
@@ -204,27 +212,26 @@ def ssh_oneshot(command):
     '''
     Run simple ssh command, ignoring errors
     '''
-    out, _ = ssh_cmd(command)
-    return out
 
-
-def ssh_cmd(command):
-    '''
-    Run cmd on the remote system
-    '''
+    if not _proxy_connect():
+        return False
+    
     try:
         out, err = DETAILS['server'].sendline(command)
         out = "\n".join(out.split('\n')[1:-1])
-        return out, err
-    except TerminalException as e:
+        return out
+    except Exception as e:
         log.error(e)
         return False
-
 
 def ssh_check(command):
     '''
     Run cmd on the remote system and fetch exit code
     '''
+
+    if not _proxy_connect():
+        return False
+
     try:
         out, err = DETAILS['server'].sendline('%s; echo $?' % (command))
         out = "\n".join(out.split('\n')[1:-1])
@@ -239,8 +246,7 @@ def ssh_file_content(filename):
     '''
     Fetch the content of a file on the remote system
     '''
-    data, _ = ssh_cmd('cat %s' % (filename,))
-    return data
+    return ssh_oneshot('cat %s' % (filename,))
 
 
 def shutdown(opts):
