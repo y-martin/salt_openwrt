@@ -3,6 +3,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 # Import Python Libs
 import logging
 import re
+import time
 
 # Import Salt Libs
 import salt.exceptions
@@ -165,8 +166,10 @@ def _proxy_connect():
     retry_conn = 0
     
     while retry_conn < DETAILS['proxy'].get('conn_retry', 3):
+        if retry_conn > 0:
+            time.sleep(1)
+        
         retry_conn += 1
-
         if not DETAILS.get('server'):
             try:        
                 DETAILS['server'] = SSHConnection(
